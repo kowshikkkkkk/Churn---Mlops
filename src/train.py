@@ -6,6 +6,8 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, f1_score, roc_auc_score
 from preprocess import load_and_preprocess
 
+
+
 # ── Load & split data ──────────────────────────────────────
 X, y = load_and_preprocess("data/WA_Fn-UseC_-Telco-Customer-Churn.csv")
 
@@ -54,3 +56,44 @@ with mlflow.start_run():
     print(f"✅ ROC-AUC  : {auc:.4f}")
     print("✅ Model saved to models/model.pkl")
     print("🎯 Model logged to MLflow!")
+
+def retrain_model():
+
+    print("🔄 Retraining model with latest data...")
+
+    X, y = load_and_preprocess("data/WA_Fn-UseC_-Telco-Customer-Churn.csv")
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=42
+    )
+
+    mlflow.set_experiment("churn-prediction-retrain")
+
+    with mlflow.start_run():
+        n_estimators = 100
+        max_depth = 5
+
+        mlflow.log_param("n_estimators", n_estimators)
+        mlflow.log_param("max_depth", max_depth)
+        mlflow.log_param("trigger", "drift_detected")
+
+        model = RandomForestClassifier(
+            n_estimators=n_estimators,
+            max_depth=max_depth,
+            random_state=42
+        )
+        model.fit(X_train, y_train)
+
+        preds = model.predict(X_test)
+        acc = accuracy_score(y_test, preds)
+        f1  = f1_score(y_test, preds)
+        auc = roc_auc_score(y_test, preds)
+
+        mlflow.log_metric("accuracy", acc)
+        mlflow.log_metric("f1_score", f1)
+        mlflow.log_metric("roc_auc",  auc)
+
+        mlflow.sklearn.log_model(model, "random_forest_model")
+        joblib.dump(model, "models/model.pkl")
+
+        print(f"✅ Retrained — Accuracy: {acc:.4f} | F1: {f1:.4f} | AUC: {auc:.4f}")
+        print("✅ New model saved to models/model.pkl")
