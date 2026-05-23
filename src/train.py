@@ -6,8 +6,8 @@ from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, f1_score, roc_auc_score
 from preprocess import load_and_preprocess
-
-mlflow.set_tracking_uri("sqlite:///mlflow.db")
+import os
+mlflow.set_tracking_uri("sqlite:///" + os.path.join(os.getcwd(), "mlflow.db"))
 
 def train_model(data_path: str = "data/WA_Fn-UseC_-Telco-Customer-Churn.csv"):
     """
@@ -88,7 +88,7 @@ def train_model(data_path: str = "data/WA_Fn-UseC_-Telco-Customer-Churn.csv"):
             mlflow.log_metric(f"importance_{feature}", round(importance, 4))
 
         # Save full feature importance as CSV artifact
-        fi_path = "models/feature_importance.csv"
+        fi_path = os.path.join(os.getcwd(), "models", "feature_importance.csv")
         feature_importance.to_csv(fi_path, header=["importance"])
         mlflow.log_artifact(fi_path)
 
