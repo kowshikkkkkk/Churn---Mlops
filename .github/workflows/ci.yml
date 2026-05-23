@@ -1,0 +1,78 @@
+name: Churn MLOps CI Pipeline
+
+# ── Trigger ────────────────────────────────────────────────────────────────────
+# This pipeline runs automatically on every push to main
+# and on every pull request targeting main
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+# ── Jobs ───────────────────────────────────────────────────────────────────────
+jobs:
+
+  # ── Job 1: Run Tests ──────────────────────────────────────────────────────────
+  test:
+    name: Run Unit Tests
+    runs-on: ubuntu-latest        # GitHub spins up a fresh Linux machine
+
+    steps:
+
+      # Step 1: Download your code onto the GitHub machine
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # Step 2: Install Python 3.11
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      # Step 3: Install your dependencies
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      # Step 4: Create required folders so tests don't fail on missing dirs
+      - name: Create required directories
+        run: |
+          mkdir -p models
+          mkdir -p reports
+          mkdir -p data
+
+      # Step 5: Download the dataset
+      # We use a public URL since data/ is in .gitignore
+      - name: Download dataset
+        run: |
+          curl -L "https://raw.githubusercontent.com/kowshikkkkkk/Churn---Mlops/main/data/WA_Fn-UseC_-Telco-Customer-Churn.csv" \
+          -o data/WA_Fn-UseC_-Telco-Customer-Churn.csv
+
+      # Step 6: Train model to generate model.pkl and feature_columns.pkl
+      # Tests need these artifacts to exist
+      - name: Train model to generate artifacts
+        run: python src/train.py
+
+      # Step 7: Run all pytest tests
+      - name: Run unit tests
+        run: pytest tests/test_pipeline.py -v
+
+  # ── Job 2: Build Docker Image ─────────────────────────────────────────────────
+  docker:
+    name: Build Docker Image
+    runs-on: ubuntu-latest
+    needs: test                   # Only runs if Job 1 (tests) passes
+
+    steps:
+
+      # Step 1: Download your code
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # Step 2: Build the Docker image
+      # This proves the Dockerfile is valid and all dependencies install correctly
+      - name: Build Docker image
+        run: docker build -t churn-api:latest .
+
+      # Step 3: Confirm the image was built
+      - name: Verify Docker image exists
+        run: docker images churn-api
