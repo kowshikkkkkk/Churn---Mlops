@@ -7,7 +7,7 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, f1_score, roc_auc_score
 from preprocess import load_and_preprocess
 import os
-mlflow.set_tracking_uri("sqlite:///" + os.path.join(os.getcwd(), "mlflow.db"))
+mlflow.set_tracking_uri("sqlite:///mlflow.db")
 
 def train_model(data_path: str = "data/WA_Fn-UseC_-Telco-Customer-Churn.csv"):
     """
