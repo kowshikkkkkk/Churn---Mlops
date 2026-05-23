@@ -88,16 +88,14 @@ def train_model(data_path: str = "data/WA_Fn-UseC_-Telco-Customer-Churn.csv"):
             mlflow.log_metric(f"importance_{feature}", round(importance, 4))
 
         # Save full feature importance as CSV artifact
-        fi_path = os.path.join(os.getcwd(), "models", "feature_importance.csv")
-        feature_importance.to_csv(fi_path, header=["importance"])
-        mlflow.log_artifact(fi_path)
+        feature_importance.to_csv("models/feature_importance.csv", header=["importance"])
 
         print(f"\n📊 Top 5 features driving churn:")
         for feat, imp in feature_importance.head(5).items():
             print(f"   {feat:<35} {imp:.4f}")
 
         # ── Save model ─────────────────────────────────────────────────────
-        mlflow.sklearn.log_model(model, "random_forest_model")
+        
         joblib.dump(model, "models/model.pkl")
 
         print(f"\n✅ Accuracy : {acc:.4f}")
@@ -163,7 +161,7 @@ def retrain_model(data_path: str = "data/WA_Fn-UseC_-Telco-Customer-Churn.csv"):
         for feature, importance in feature_importance.head(10).items():
             mlflow.log_metric(f"importance_{feature}", round(importance, 4))
 
-        mlflow.sklearn.log_model(model, "random_forest_model")
+        
         joblib.dump(model, "models/model.pkl")
 
         print(f"✅ Retrained — Accuracy: {acc:.4f} | F1: {f1:.4f} | AUC: {auc:.4f}")
