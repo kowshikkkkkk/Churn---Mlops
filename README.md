@@ -7,23 +7,15 @@ Covers data preprocessing, model training, experiment tracking, REST API serving
 
 ## Project Architecture
 
-```
-Raw CSV Data
-     ↓
-preprocess.py       → One-Hot Encoding, null handling, saves feature schema
-     ↓
-train.py            → RandomForest with class_weight='balanced', MLflow logging
-     ↓
-models/
-  model.pkl               → Trained model
-  feature_columns.pkl     → Column schema for inference alignment
-  feature_importance.csv  → Top features driving churn
-     ↓
-monitor.py          → Evidently drift detection on incoming data
-     ↓
-retrain.py          → Auto-triggers retraining when drift is detected
-     ↓
-api/main.py         → FastAPI serving predictions via REST endpoint
+```mermaid
+flowchart TD
+    A["Raw CSV Data"] --> B["preprocess.py\nOne-Hot Encoding, null handling, saves feature schema"]
+    B --> C["train.py\nRandomForest with class_weight=balanced, MLflow logging"]
+    C --> D["models/\nmodel.pkl, feature_columns.pkl, feature_importance.csv"]
+    D --> E["monitor.py\nEvidently drift detection on incoming data"]
+    E --> F["retrain.py\nAuto-triggers retraining when drift is detected"]
+    F --> G["api/main.py\nFastAPI serving predictions via REST endpoint"]
+    F -.->|"retrain loop"| C
 ```
 
 ---
@@ -220,10 +212,11 @@ Every push to `main` automatically:
 
 [![CI](https://github.com/kowshikkkkkk/Churn---Mlops/actions/workflows/ci.yml/badge.svg)](https://github.com/kowshikkkkkk/Churn---Mlops/actions/workflows/ci.yml)
 
+---
 
 ## Known Limitations & Production Roadmap
 
- Limitation | Production Fix |
+| Limitation | Production Fix |
 |------------|---------------|
 | Retraining uses same original CSV | Store incoming prediction data; retrain on new data |
 | Drift is simulated, not real | Use real time-windowed data (last 2 weeks vs last 3 months) |
