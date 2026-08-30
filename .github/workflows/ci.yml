@@ -1,78 +1,221 @@
-name: Churn MLOps CI Pipeline
+name: Churn MLOps CI/CD Pipeline
 
-# ── Trigger ────────────────────────────────────────────────────────────────────
-# This pipeline runs automatically on every push to main
-# and on every pull request targeting main
 on:
   push:
     branches: [ main ]
   pull_request:
     branches: [ main ]
 
-# ── Jobs ───────────────────────────────────────────────────────────────────────
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
 jobs:
 
-  # ── Job 1: Run Tests ──────────────────────────────────────────────────────────
-  test:
-    name: Run Unit Tests
-    runs-on: ubuntu-latest        # GitHub spins up a fresh Linux machine
-
+  # ── Job 1: Code Quality ─────────────────────────────────────────────────────
+  quality:
+    name: Code Quality & Lint
+    runs-on: ubuntu-latest
+    
     steps:
-
-      # Step 1: Download your code onto the GitHub machine
       - name: Checkout code
         uses: actions/checkout@v3
 
-      # Step 2: Install Python 3.11
       - name: Set up Python 3.11
         uses: actions/setup-python@v4
         with:
           python-version: "3.11"
+          cache: pip
 
-      # Step 3: Install your dependencies
+      - name: Install quality tools
+        run: |
+          pip install --no-cache-dir black==24.3.0 pylint==3.0.3 mypy==1.8.0 isort==5.13.2
+
+      - name: Format check (Black)
+        run: black --check src/ api/ tests/ 2>&1 | head -20 || true
+
+      - name: Lint check (Pylint)
+        run: pylint src/ api/ --fail-under=7.5 2>&1 | head -20 || true
+
+  # ── Job 2: Run Unit Tests ───────────────────────────────────────────────────
+  test:
+    name: Run Unit Tests
+    runs-on: ubuntu-latest
+    needs: quality
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+          cache: pip
+
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      # Step 4: Create required folders so tests don't fail on missing dirs
       - name: Create required directories
         run: |
           mkdir -p models
           mkdir -p reports
           mkdir -p data
+          mkdir -p scripts
 
-      # Step 5: Download the dataset
-      # We use a public URL since data/ is in .gitignore
       - name: Download dataset
         run: |
           curl -L "https://raw.githubusercontent.com/kowshikkkkkk/Churn---Mlops/main/data/WA_Fn-UseC_-Telco-Customer-Churn.csv" \
           -o data/WA_Fn-UseC_-Telco-Customer-Churn.csv
 
-      # Step 6: Train model to generate model.pkl and feature_columns.pkl
-      # Tests need these artifacts to exist
       - name: Train model to generate artifacts
         run: python src/train.py
 
-      # Step 7: Run all pytest tests
       - name: Run unit tests
         run: pytest tests/test_pipeline.py -v
 
-  # ── Job 2: Build Docker Image ─────────────────────────────────────────────────
-  docker:
-    name: Build Docker Image
+  # ── Job 3: Evaluate Model Performance ───────────────────────────────────────
+  evaluate:
+    name: Model Evaluation & Performance Gates
     runs-on: ubuntu-latest
-    needs: test                   # Only runs if Job 1 (tests) passes
+    needs: test
 
     steps:
-
-      # Step 1: Download your code
       - name: Checkout code
         uses: actions/checkout@v3
 
-      # Step 2: Build the Docker image
-      # This proves the Dockerfile is valid and all dependencies install correctly
-      - name: Build Docker image
-        run: docker build -t churn-api:latest .
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+          cache: pip
 
-      # Step 3: Confirm the image was built
-      - name: Verify Docker image exists
-        run: docker images churn-api
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Create required directories
+        run: |
+          mkdir -p models
+          mkdir -p reports
+          mkdir -p data
+          mkdir -p scripts
+
+      - name: Download dataset
+        run: |
+          curl -L "https://raw.githubusercontent.com/kowshikkkkkk/Churn---Mlops/main/data/WA_Fn-UseC_-Telco-Customer-Churn.csv" \
+          -o data/WA_Fn-UseC_-Telco-Customer-Churn.csv
+
+      - name: Train and evaluate model
+        run: |
+          python src/train.py
+          python scripts/evaluate_model.py
+
+  # ── Job 4: Register Model Version ───────────────────────────────────────────
+  register:
+    name: Register Model Version
+    runs-on: ubuntu-latest
+    needs: evaluate
+    if: success()
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Create required directories
+        run: |
+          mkdir -p models
+          mkdir -p reports
+          mkdir -p data
+          mkdir -p scripts
+
+      - name: Download dataset
+        run: |
+          curl -L "https://raw.githubusercontent.com/kowshikkkkkk/Churn---Mlops/main/data/WA_Fn-UseC_-Telco-Customer-Churn.csv" \
+          -o data/WA_Fn-UseC_-Telco-Customer-Churn.csv
+
+      - name: Train and register model
+        env:
+          COMMIT_SHA: ${{ github.sha }}
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+        run: |
+          python src/train.py
+          python scripts/register_model.py
+
+      - name: Upload model registry
+        uses: actions/upload-artifact@v3
+        with:
+          name: model-registry
+          path: model_registry.json
+
+  # ── Job 5: Build and Push Docker Image ──────────────────────────────────────
+  docker:
+    name: Build & Push Docker Image
+    runs-on: ubuntu-latest
+    needs: [test, evaluate, register]
+    if: success() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v4
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ── Job 6: Summary ─────────────────────────────────────────────────────────
+  summary:
+    name: CI/CD Pipeline Summary
+    runs-on: ubuntu-latest
+    needs: [quality, test, evaluate, register, docker]
+    if: always()
+
+    steps:
+      - name: Pipeline Status
+        run: |
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "CI/CD Pipeline Complete"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "✅ Quality:  ${{ needs.quality.result }}"
+          echo "✅ Tests:    ${{ needs.test.result }}"
+          echo "✅ Evaluate: ${{ needs.evaluate.result }}"
+          echo "✅ Register: ${{ needs.register.result }}"
+          echo "✅ Docker:   ${{ needs.docker.result }}"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
