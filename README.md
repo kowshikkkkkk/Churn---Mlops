@@ -7,23 +7,15 @@ Covers data preprocessing, model training, experiment tracking, REST API serving
 
 ## Project Architecture
 
-```
-Raw CSV Data
-     ↓
-preprocess.py       → One-Hot Encoding, null handling, saves feature schema
-     ↓
-train.py            → RandomForest with class_weight='balanced', MLflow logging
-     ↓
-models/
-  model.pkl               → Trained model
-  feature_columns.pkl     → Column schema for inference alignment
-  feature_importance.csv  → Top features driving churn
-     ↓
-monitor.py          → Evidently drift detection on incoming data
-     ↓
-retrain.py          → Auto-triggers retraining when drift is detected
-     ↓
-api/main.py         → FastAPI serving predictions via REST endpoint
+```mermaid
+flowchart TD
+    A["Raw CSV Data"] --> B["preprocess.py\nOne-Hot Encoding, null handling, saves feature schema"]
+    B --> C["train.py\nRandomForest with class_weight=balanced, MLflow logging"]
+    C --> D["models/\nmodel.pkl, feature_columns.pkl, feature_importance.csv"]
+    D --> E["monitor.py\nEvidently drift detection on incoming data"]
+    E --> F["retrain.py\nAuto-triggers retraining when drift is detected"]
+    F --> G["api/main.py\nFastAPI serving predictions via REST endpoint"]
+    F -.->|"retrain loop"| C
 ```
 
 ---
@@ -208,6 +200,20 @@ pytest tests/test_pipeline.py -v
 
 ---
 
+## CI/CD Pipeline
+
+Every push to `main` automatically:
+1. Spins up a fresh Ubuntu Linux machine on GitHub
+2. Installs all dependencies from requirements.txt
+3. Trains the model to generate artifacts
+4. Runs all 6 pytest unit tests
+5. If tests pass → builds Docker image
+6. If tests fail → pipeline stops, developer is notified
+
+[![CI](https://github.com/kowshikkkkkk/Churn---Mlops/actions/workflows/ci.yml/badge.svg)](https://github.com/kowshikkkkkk/Churn---Mlops/actions/workflows/ci.yml)
+
+---
+
 ## Known Limitations & Production Roadmap
 
 | Limitation | Production Fix |
@@ -216,8 +222,6 @@ pytest tests/test_pipeline.py -v
 | Drift is simulated, not real | Use real time-windowed data (last 2 weeks vs last 3 months) |
 | No model validation before deployment | Compare new model vs old before replacing |
 | Manual pipeline execution | Apache Airflow DAG for scheduled drift checks and retraining |
-| No containerization | Dockerize pipeline for consistent environments |
-| No CI/CD | GitHub Actions for automated testing and deployment |
 | Single model, no experimentation | Compare XGBoost, LightGBM; use MLflow model registry for versioning |
 
 ---
@@ -234,6 +238,8 @@ pytest tests/test_pipeline.py -v
 | Evidently | Data drift detection |
 | pytest | Unit testing |
 | joblib | Model and artifact serialization |
+| Docker | Containerization — python:3.11-slim image |
+| GitHub Actions | CI/CD — automated testing and Docker build on every push |
 
 ---
 
