@@ -47,7 +47,7 @@ def train_model(data_path: str = "data/WA_Fn-UseC_-Telco-Customer-Churn.csv"):
 
         # Parameters
         n_estimators = 100
-        max_depth    = 5
+        max_depth    = 4
         class_weight = "balanced"
 
         mlflow.log_param("n_estimators", n_estimators)

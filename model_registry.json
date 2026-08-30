@@ -1,0 +1,61 @@
+{
+  "models": {
+    "1.0.0": {
+      "model_version": "1.0.0",
+      "model_hash": "235c99c3aca68c5236227703cbedce60c78a7277c7ebc3f42dfa759ccae94f7b",
+      "registered_at": "2026-08-30T10:04:05.437496Z",
+      "commit": {
+        "commit_sha": "manual-r",
+        "commit_message": "local training",
+        "timestamp": "2026-08-30T10:04:05.437496Z",
+        "branch": "main"
+      },
+      "metrics": {
+        "accuracy": 0.728500355366027,
+        "precision": 0.49337748344370863,
+        "recall": 0.7967914438502673,
+        "f1_score": 0.6094069529652352,
+        "roc_auc": 0.8364389582287196
+      },
+      "stage": "Archived"
+    },
+    "1.0.1": {
+      "model_version": "1.0.1",
+      "model_hash": "faf5e4cae4f8a33cd26d8ee298759be3a71069f4c76bfde04d81dad0791d395b",
+      "registered_at": "2026-08-30T10:05:29.726260Z",
+      "commit": {
+        "commit_sha": "manual-r",
+        "commit_message": "local training",
+        "timestamp": "2026-08-30T10:05:29.726260Z",
+        "branch": "main"
+      },
+      "metrics": {
+        "accuracy": 0.7078891257995735,
+        "precision": 0.4712286158631415,
+        "recall": 0.8101604278074866,
+        "f1_score": 0.5958702064896755,
+        "roc_auc": 0.8285728706689928
+      },
+      "stage": "Archived"
+    },
+    "1.0.2": {
+      "model_version": "1.0.2",
+      "model_hash": "1d9cf20ced26907cc92d1c5a02b8f59b7a7d19a80a62b5f818495437c9e56259",
+      "registered_at": "2026-08-30T10:05:48.601201Z",
+      "commit": {
+        "commit_sha": "manual-r",
+        "commit_message": "local training",
+        "timestamp": "2026-08-30T10:05:48.601201Z",
+        "branch": "main"
+      },
+      "metrics": {
+        "accuracy": 0.7228144989339019,
+        "precision": 0.487012987012987,
+        "recall": 0.8021390374331551,
+        "f1_score": 0.6060606060606061,
+        "roc_auc": 0.8333626683094253
+      },
+      "stage": "Production"
+    }
+  }
+}
