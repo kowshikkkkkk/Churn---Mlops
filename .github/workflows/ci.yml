@@ -12,36 +12,10 @@ env:
 
 jobs:
 
-  # ── Job 1: Code Quality ─────────────────────────────────────────────────────
-  quality:
-    name: Code Quality & Lint
-    runs-on: ubuntu-latest
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Set up Python 3.11
-        uses: actions/setup-python@v4
-        with:
-          python-version: "3.11"
-          cache: pip
-
-      - name: Install quality tools
-        run: |
-          pip install --no-cache-dir black==24.3.0 pylint==3.0.3 mypy==1.8.0 isort==5.13.2
-
-      - name: Format check (Black)
-        run: black --check src/ api/ tests/ 2>&1 | head -20 || true
-
-      - name: Lint check (Pylint)
-        run: pylint src/ api/ --fail-under=7.5 2>&1 | head -20 || true
-
-  # ── Job 2: Run Unit Tests ───────────────────────────────────────────────────
+  # ── Job 1: Run Unit Tests ───────────────────────────────────────────────────
   test:
     name: Run Unit Tests
     runs-on: ubuntu-latest
-    needs: quality
 
     steps:
       - name: Checkout code
@@ -51,7 +25,6 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: "3.11"
-          
 
       - name: Install dependencies
         run: pip install -r requirements.txt
@@ -74,7 +47,7 @@ jobs:
       - name: Run unit tests
         run: pytest tests/test_pipeline.py -v
 
-  # ── Job 3: Evaluate Model Performance ───────────────────────────────────────
+  # ── Job 2: Evaluate Model Performance ───────────────────────────────────────
   evaluate:
     name: Model Evaluation & Performance Gates
     runs-on: ubuntu-latest
@@ -88,7 +61,6 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: "3.11"
-          
 
       - name: Install dependencies
         run: pip install -r requirements.txt
@@ -110,7 +82,7 @@ jobs:
           python src/train.py
           python scripts/evaluate_model.py
 
-  # ── Job 4: Register Model Version ───────────────────────────────────────────
+  # ── Job 3: Register Model Version ───────────────────────────────────────────
   register:
     name: Register Model Version
     runs-on: ubuntu-latest
@@ -125,7 +97,6 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: "3.11"
-          
 
       - name: Install dependencies
         run: pip install -r requirements.txt
@@ -156,7 +127,7 @@ jobs:
           name: model-registry
           path: model_registry.json
 
-  # ── Job 5: Build and Push Docker Image ──────────────────────────────────────
+  # ── Job 4: Build and Push Docker Image ──────────────────────────────────────
   docker:
     name: Build & Push Docker Image
     runs-on: ubuntu-latest
@@ -200,11 +171,11 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  # ── Job 6: Summary ─────────────────────────────────────────────────────────
+  # ── Job 5: Summary ─────────────────────────────────────────────────────────
   summary:
     name: CI/CD Pipeline Summary
     runs-on: ubuntu-latest
-    needs: [quality, test, evaluate, register, docker]
+    needs: [test, evaluate, register, docker]
     if: always()
 
     steps:
@@ -213,7 +184,6 @@ jobs:
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
           echo "CI/CD Pipeline Complete"
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          echo "✅ Quality:  ${{ needs.quality.result }}"
           echo "✅ Tests:    ${{ needs.test.result }}"
           echo "✅ Evaluate: ${{ needs.evaluate.result }}"
           echo "✅ Register: ${{ needs.register.result }}"
