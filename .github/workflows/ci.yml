@@ -122,7 +122,7 @@ jobs:
           python scripts/register_model.py
 
       - name: Upload model registry
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: model-registry
           path: model_registry.json
